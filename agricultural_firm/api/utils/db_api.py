@@ -74,8 +74,11 @@ def get_all_soils() -> QuerySet[Soil_quality]:
     
     return res
 
-def get_actual_period() -> Optional[Period]:
-    now_time = datetime.now()
+def get_actual_period(now_time: Optional[datetime] = None) -> Optional[Period]:
+    """
+    Возвращает период по дате, если дата не введенна, то по актуальной дате
+    """
+    now_time = now_time if now_time else datetime.now()
     res = Period.objects.filter(
         start_date__lte=now_time,
         end_date__gte=now_time
@@ -83,14 +86,20 @@ def get_actual_period() -> Optional[Period]:
     
     return res
 
-def get_all_previous_periods(period_start_date: datetime) -> QuerySet[Period]:
+def get_all_previous_periods(period_start_date: datetime, limit=1) -> QuerySet[Period]:
+    """
+    Возвращает все периоды, ранее введенной даты
+    """
     res = Period.objects.filter(end_date__lte=period_start_date)\
                         .order_by('start_date')\
-                        .all()
+                        .all()[:limit]
     
     return res
 
 def get_period_meteo_reports(period_id: int) -> QuerySet[Meteo_report]:
+    """
+    Возвращает все прогнозы погоды, принадлежащие периоду
+    """
     res = Meteo_report.objects.filter(period_id=period_id)\
                               .order_by('report_date')\
                               .all()

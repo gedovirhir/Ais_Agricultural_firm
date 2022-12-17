@@ -3,12 +3,10 @@ from django.db.models import Q, F
 
 class Culture(models.Model):
     
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     productivity_k = models.FloatField()
-    
     fav_temp_bot = models.FloatField(default=F('fav_temp_top'))
     fav_temp_top = models.FloatField(default=F('fav_temp_bot'))
-    
     fav_precip_bot = models.FloatField(default=F('fav_precip_top'))
     fav_precip_top = models.FloatField(default=F('fav_precip_bot'))
     
