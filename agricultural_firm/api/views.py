@@ -4,7 +4,7 @@ import json
 
 from .models import *
 from .utils.db_api import *
-from .utils.prognose_utils import get_prognose_avg_temp
+from .utils.prognose_utils import calculate_productivity_on_period
 from .serializers import *
 
 ErrorJsonResponse = {
@@ -25,7 +25,7 @@ class getAllSoils(APIView):
     def get(self, request):
         res = get_all_soils()
         
-        resp = CultureSerializer(res, many=True).data
+        resp = SoilSerializer(res, many=True).data
         return Response(resp)
 
 class getPrognose(APIView):
@@ -34,9 +34,36 @@ class getPrognose(APIView):
         r_params = GetPrognoseSerializer(data=request.query_params)
         r_params.is_valid(raise_exception=True)
         
-        #r_params = r_params.data
+        params = r_params.data
         
-        ...
+        p = get_actual_period(params.get('date'))
+        c = Culture.objects.get(id=params['culture_id'])
+        soil = Soil_quality.objects.get(id=params['soil_type_id'])
+        
+        periods_query = get_all_previous_periods(p.start_date, limit=None)
+        reports_query = get_period_meteo_reports([pr.id for pr in periods_query])
+        
+        reports = [(rep.report_date, rep.temperature, rep.precipitation) for rep in reports_query]
+        
+        prodctv, weather_k = calculate_productivity_on_period(
+            c.productivity_k,
+            (c.fav_temp_bot, c.fav_temp_top),
+            (c.fav_precip_bot, c.fav_precip_top),
+            soil.fertility_k,
+            params['sowing_area'],
+            reports,
+            p.start_date,
+            p.end_date
+        )
+        
+        res = {
+            "prod": prodctv,
+            "weather": weather_k
+        }
+        
+        return Response(res)
+    
+        
         
 """
 class getAllPreviousPeriodsMeteo(APIView):

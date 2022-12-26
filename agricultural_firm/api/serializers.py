@@ -6,6 +6,8 @@ from rest_framework.serializers import (Serializer,
 
 from .models import *
 
+from datetime import datetime
+
 class CultureSerializer(Serializer):
     id = IntegerField()
     name = CharField(max_length=100)
@@ -24,4 +26,4 @@ class GetPrognoseSerializer(Serializer):
     culture_id = IntegerField()
     soil_type_id = IntegerField()
     sowing_area = FloatField()
-    date = DateField()
+    date = DateField(default=None, allow_null=True)

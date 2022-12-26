@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Agrofirma</title>
+	<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href={% static 'main.css'%}>
+</head>
+<body>
+	<header id="header" class="header">
+		<div class="container">
+			<div class="logo">
+				<img src="img/logo.svg" class="logo_img">
+				<p class="logo_name">ИС «Агрофирма»</p>
+			</div>
+		</div>
+	</header>
+	<script>
+		function get_prognose() {
+			let cults = {{ cultures|safe }};
+			let soils_ = {{ soils | safe }};
+			
+			let culture_id = 0;
+			let c_kf = 0;
+
+			let soil_type_id = 0;
+			let soil_kf = 0;
+
+			let cult_name = document.getElementById('select_culture').value;
+			let soil_name = document.getElementById('select_soil').value;
+
+			for (let c of cults) {
+				if (c.name == cult_name) {
+					culture_id = c.id;
+					c_kf = c.productivity_k;
+					break;
+				}
+			}
+			for (let s of soils_) {
+				if (s.title == soil_name) {
+					soil_type_id = s.id;
+					soil_kf = s.fertility_k;
+					break;
+				}
+			}
+
+			let sowing_area = document.getElementById('sowing_a_input').value;
+			let date = document.getElementById("input_date_p").value;
+			
+			document.getElementById('culture_show').innerHTML  = "Вид культуры: " + cult_name + ", Урожайность: " + c_kf + " Кг/Га";
+			document.getElementById('soil_show').innerHTML = "Тип почвы: " + soil_name + ", К. урожайности: " + soil_kf;
+			document.getElementById('area_show').innerHTML = "Площадь засева: " + sowing_area;
+
+			function getResponse() {return fetch("http://25.46.163.182:8000/api/v1/getPrognose?culture_id="+ culture_id + "&soil_type_id=" + soil_type_id + "&sowing_area=" + sowing_area + "&date=" + date,{method: "GET"})
+							.then(response => {return response.json();})
+							.catch(error => {
+								alert(error);
+							});
+						}
+			response = getResponse().then(
+				response => {
+					let weather_k = response['weather'];
+
+					if (weather_k > 0.5) {
+						weather_k = "Благоприятная";
+					} else {
+						weather_k = "Неблагоприятная";
+					}
+				
+					let prod_k = response['prod'];
+
+					document.getElementById('weather_k_show').value = weather_k;
+					document.getElementById('prod_show').value = prod_k + " Кг/Га";
+				}
+			);
+		}
+	</script>
+	<section id="main" class="main">
+		<div class="container">
+			<div class="main_page">
+				<div class="data">
+					<p class="data_title">Данные</p>
+					<div class="data_items">
+						<div class="select_item">
+							<select id='select_culture' class="select_1">
+							<option value="" hidden disabled selected>вид культуры</option>
+							{% for cult in cultures %}
+							<option>{{cult.name}}</option>
+							{%endfor%}
+						</select>
+						</div>
+						<div class="select_item">
+							<select id='select_soil' class="select_2">
+							<option value="" hidden disabled selected>тип почвы</option>
+							{% for soil in soils %}
+							<option>{{soil.title}}</option>
+							{%endfor%}
+						</select>
+						</div>
+						<div class="input_item">
+							<input type="text" size="30" class="input_form" id="sowing_a_input" placeholder="площадь засева"><span class="unit">Га</span>
+						</div>
+						<div>
+							<input type="date" id="input_date_p" class="input_date">
+						</div>
+						<button id="calc_btn" onclick="get_prognose();" class="btn">РАСЧИТАТЬ</button>
+					</div>
+				</div>
+				<div class="result">
+					<p class="data_title">Результат</p>
+					<div class="table">
+						<div class="table_1">
+							<div class="table_item">
+								<p id='culture_show'>Вид культуры:</p>
+							</div>
+							<div class="table_item">
+								<p id='soil_show'>Тип почвы:</p>
+							</div>
+							<div class="table_item">
+								<p id='area_show'>Площадь засева:</p>
+							</div>
+						</div>
+						<div class="table_2">
+							<div class="table_item">
+								<p>Благоприятность погоды:</p>
+								<input id="weather_k_show" type="text">
+							</div>
+							<div class="table_item">
+								<p><b>Урожайность:</b></p>
+								<input id="prod_show" type="text">
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</body>
+</html>

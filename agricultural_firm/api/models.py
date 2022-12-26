@@ -59,6 +59,7 @@ class Meteo_report(models.Model):
     class Meta:
         db_table = 'meteo_reports'
 
+"""
 class Regression_prognoses(models.Model):
     period = models.ForeignKey(
         Period,
@@ -68,7 +69,6 @@ class Regression_prognoses(models.Model):
     avg_precip = models.FloatField()
     
 
-"""
 class Plot_culture(models.Model):
     D_SOWING = 100.0
     

@@ -2,7 +2,7 @@ from ..models import *
 
 from datetime import datetime, timedelta
 from django.db.models import QuerySet
-from typing import Optional, Iterable
+from typing import Optional, Union
 
 def _add_default_data():
     c1 = [Culture(
@@ -63,6 +63,7 @@ def _add_default_data():
     
     objs = c1 + sq1 + per1 + mr1
     for o in objs: o.save()
+        
 
 def get_all_cultures() -> QuerySet[Culture]:
     res = Culture.objects.all()
@@ -86,25 +87,39 @@ def get_actual_period(now_time: Optional[datetime] = None) -> Optional[Period]:
     
     return res
 
-def get_all_previous_periods(period_start_date: datetime, limit=1) -> QuerySet[Period]:
+def get_all_previous_periods(period_start_date: datetime, limit=4) -> QuerySet[Period]:
     """
     Возвращает все периоды, ранее введенной даты
     """
+    if not limit:
+        return Period.objects.filter(end_date__lte=period_start_date)\
+                        .order_by('-start_date')\
+                        .all()
     res = Period.objects.filter(end_date__lte=period_start_date)\
-                        .order_by('start_date')\
+                        .order_by('-start_date')\
                         .all()[:limit]
     
     return res
 
-def get_period_meteo_reports(period_id: int) -> QuerySet[Meteo_report]:
+def get_period_meteo_reports(period_id: Union[list, int]) -> QuerySet[Meteo_report]:
     """
     Возвращает все прогнозы погоды, принадлежащие периоду
     """
-    res = Meteo_report.objects.filter(period_id=period_id)\
+    if isinstance(period_id, int): period_id = [period_id]
+    res = Meteo_report.objects.select_related('period')\
+                              .filter(period_id__in=period_id)\
                               .order_by('report_date')\
                               .all()
     
     return res
+
+"""
+def get_regression_prognose(
+    period_id: int
+) -> Regression_prognoses:
+    prongose = Regression_prognoses.objects.filter(period_id=period_id).first()
+    
+    return prongose
 
 def add_regression_prognose(
     period_id: int,
@@ -118,6 +133,7 @@ def add_regression_prognose(
     )
     
     new.save()
+"""
 
 
 

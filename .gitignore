@@ -1,2 +1,4 @@
 *.pyc
 *.pyc
+*.pyc
+agricultural_firm/api/utils/fake_data/city_temperature.csv

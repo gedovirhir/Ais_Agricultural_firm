@@ -6,6 +6,6 @@ from .views import *
 urlpatterns = [
     path('getAllCultures', getAllCultures.as_view()),
     path('getAllSoils', getAllSoils.as_view()),
-    
+    path('getPrognose', getPrognose.as_view()),
     
 ]
