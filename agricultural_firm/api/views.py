@@ -40,7 +40,7 @@ class getPrognose(APIView):
         c = Culture.objects.get(id=params['culture_id'])
         soil = Soil_quality.objects.get(id=params['soil_type_id'])
         
-        periods_query = get_all_previous_periods(p.start_date, limit=None)
+        periods_query = get_all_previous_periods(p.start_date, limit=4 )
         reports_query = get_period_meteo_reports([pr.id for pr in periods_query])
         
         reports = [(rep.report_date, rep.temperature, rep.precipitation) for rep in reports_query]

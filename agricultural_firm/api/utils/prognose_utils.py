@@ -17,27 +17,23 @@ class synopticReportTuple(NamedTuple):
 class synopticRegression(torch.nn.Module):
     def __init__(self) -> None:
         super(synopticRegression, self).__init__()
-        self.linear1 = Linear(1, 10)
-        self.linear2 = Linear(10, 10)
-        self.linear3 = Linear(10, 10)
-        self.linear4 = Linear(10, 2)
+        self.linear1 = Linear(1, 5)
+        self.linear4 = Linear(5, 2)
     
     def forward(self, x):
         if not isinstance(x, Variable):
             x = np.array([x], dtype=np.float32)
-            x = normalize(torch.tensor(x), dim=0)
+            x = torch.tensor(x)
+            x = normalize(x, dim=0)
             x = Variable(x)
         
         out = self.linear1(x)
-        out = self.linear2(out)
-        out = self.linear3(out)
         out = self.linear4(out)
         
         if not self.training:
             res = [
                 float(b) for b in out
             ]
-            if len(res) == 1: res = res[0]
             return res
         return out
 
@@ -55,14 +51,14 @@ def get_finished_model(
     reports: List[synopticReportTuple]
 ) -> synopticRegression:
     model = synopticRegression()
-    model_p = "static/weather_model.nth"
+    """model_p = "static/weather_model.nth"
     try: 
         model.load_state_dict(torch.load(model_p))
         model.eval()
         return model
     except Exception as ex:
         pass
-    
+    """
     x_train, y_train = zip(
         *[(date_to_days_count(r[0]), [r[1], r[2]])
             for r in reports]
@@ -82,7 +78,7 @@ def get_finished_model(
     x_train /= x_max"""
     
     lr = 0.001
-    epoch = 200
+    epoch = 300
     
     batch_size = 64
     batch_count = len(x_train) // batch_size
@@ -113,7 +109,7 @@ def get_finished_model(
             
             print('epoch {}, loss {}'.format(e, loss.item()))
     
-    torch.save(model.state_dict(), model_p)
+    #torch.save(model.state_dict(), model_p)
     model.eval()
     
     return model
