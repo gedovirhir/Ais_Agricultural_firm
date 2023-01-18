@@ -1,7 +1,7 @@
 from ..models import *
 
 from datetime import datetime, timedelta
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q, Count
 from typing import Optional, Union
 
 def _add_default_data():
@@ -75,15 +75,18 @@ def get_all_soils() -> QuerySet[Soil_quality]:
     
     return res
 
-def get_actual_period(now_time: Optional[datetime] = None) -> Optional[Period]:
+def get_actual_period(year: Optional[int] = None, season_name: Optional[str] = None) -> Optional[Period]:
     """
     Возвращает период по дате, если дата не введенна, то по актуальной дате
     """
-    now_time = now_time if now_time else datetime.now()
+    year = year if year else datetime.now().year
+    season_name = season_name if season_name else "Весна"
+    
     res = Period.objects.filter(
-        start_date__lte=now_time,
-        end_date__gte=now_time
-    ).first()
+        start_date__year=year,
+        title=season_name
+    ).order_by('-id')\
+     .first()
     
     return res
 
@@ -92,10 +95,21 @@ def get_all_previous_periods(period_start_date: datetime, limit=4) -> QuerySet[P
     Возвращает все периоды, ранее введенной даты
     """
     if not limit:
-        return Period.objects.filter(end_date__lte=period_start_date)\
-                        .order_by('-start_date')\
-                        .all()
-    res = Period.objects.filter(end_date__lte=period_start_date)\
+        return Period.objects.prefetch_related('meteo_report')\
+                             .annotate(rep_count=Count('meteo_report'))\
+                             .filter(
+                                 end_date__lt=period_start_date,
+                                 rep_count__gt=0
+                             )\
+                             .order_by('-start_date')\
+                             .all()
+                             
+    res = Period.objects.prefetch_related('meteo_report')\
+                        .annotate(rep_count=Count('meteo_report'))\
+                        .filter(
+                            end_date__lte=period_start_date,
+                            rep_count__gt=0
+                        )\
                         .order_by('-start_date')\
                         .all()[:limit]
     

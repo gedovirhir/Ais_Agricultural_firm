@@ -5,14 +5,12 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Agrofirma</title>
-	<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href={% static 'main.css'%}>
 </head>
 <body>
 	<header id="header" class="header">
 		<div class="container">
 			<div class="logo">
-				<img src="img/logo.svg" class="logo_img">
 				<p class="logo_name">ИС «Агрофирма»</p>
 			</div>
 		</div>
@@ -24,6 +22,8 @@
 			
 			let culture_id = 0;
 			let c_kf = 0;
+			let c_temp_bound = new String();
+			let c_prec_bound = new String();
 
 			let soil_type_id = 0;
 			let soil_kf = 0;
@@ -35,6 +35,8 @@
 				if (c.name == cult_name) {
 					culture_id = c.id;
 					c_kf = c.productivity_k;
+					c_temp_bound = c.fav_temp_bot.toString() + " - " + c.fav_temp_top.toString()
+					c_prec_bound = c.fav_precip_bot.toString() + " - " + c.fav_precip_top.toString()
 					break;
 				}
 			}
@@ -47,31 +49,59 @@
 			}
 
 			let sowing_area = document.getElementById('sowing_a_input').value;
-			let date = document.getElementById("input_date_p").value;
-			
-			document.getElementById('culture_show').innerHTML  = "Вид культуры: " + cult_name + ", Урожайность: " + c_kf + " Кг/Га";
-			document.getElementById('soil_show').innerHTML = "Тип почвы: " + soil_name + ", К. урожайности: " + soil_kf;
-			document.getElementById('area_show').innerHTML = "Площадь засева: " + sowing_area;
+			let year = document.getElementById("year_input").value;
+			let season = document.getElementById("select_season").value;
 
-			function getResponse() {return fetch("http://25.46.163.182:8000/api/v1/getPrognose?culture_id="+ culture_id + "&soil_type_id=" + soil_type_id + "&sowing_area=" + sowing_area + "&date=" + date,{method: "GET"})
+			args = [cult_name, soil_name, sowing_area, year, season];
+			for (let a of args) {
+				
+				if (!a) {
+					console.error("Fields are not filled");
+					return
+				}
+			}
+
+			document.getElementById('culture_show_title').innerHTML = cult_name;
+			document.getElementById('culture_show_prod').innerHTML = c_kf;
+			document.getElementById('culture_show_temp').innerHTML = c_temp_bound;
+			document.getElementById('culture_show_prec').innerHTML = c_prec_bound;
+
+			document.getElementById('soil_show_title').innerHTML = soil_name;
+			document.getElementById('soil_show_prod').innerHTML = soil_kf;
+			document.getElementById('soil_show_area').innerHTML = sowing_area;
+			
+
+			function getResponse() {return fetch(
+				"http://25.46.163.182:8000/api/v1/getPrognose?culture_id="+ culture_id + 
+				"&soil_type_id=" + soil_type_id + 
+				"&sowing_area=" + sowing_area +
+				"&year=" + year +
+				"&season=" + season,
+				{method: "GET"})
 							.then(response => {return response.json();})
 							.catch(error => {
-								alert(error);
+								console.error(error);
 							});
 						}
 			response = getResponse().then(
 				response => {
-					let weather_k = response['weather'];
+					console.log(response);
+					
+					let weather_k = response['weather_k'];
+					let prod_k = response['prod'];
+					let temp_avg = response['temp_avg'];
+					let prec_avg = response['prec_avg'];
 
 					if (weather_k > 0.5) {
 						weather_k = "Благоприятная";
+					} else if (weather_k < 0.1) {
+						weather_k = "Губительная";
 					} else {
-						weather_k = "Неблагоприятная";
+						weather_k = "Неблагоприятная"
 					}
 				
-					let prod_k = response['prod'];
 
-					document.getElementById('weather_k_show').value = weather_k;
+					document.getElementById('weather_k_show').value = weather_k + "; °C " + temp_avg + "; Осадки " + prec_avg;
 					document.getElementById('prod_show').value = prod_k + " Кг/Га";
 				}
 			);
@@ -85,52 +115,77 @@
 					<div class="data_items">
 						<div class="select_item">
 							<select id='select_culture' class="select_1">
-							<option value="" hidden disabled selected>вид культуры</option>
-							{% for cult in cultures %}
-							<option>{{cult.name}}</option>
-							{%endfor%}
-						</select>
+								<option value="" hidden disabled selected>вид культуры</option>
+								{% for cult in cultures %}
+								<option>{{cult.name}}</option>
+								{%endfor%}
+							</select>
 						</div>
 						<div class="select_item">
 							<select id='select_soil' class="select_2">
-							<option value="" hidden disabled selected>тип почвы</option>
-							{% for soil in soils %}
-							<option>{{soil.title}}</option>
-							{%endfor%}
-						</select>
+								<option value="" hidden disabled selected>тип почвы</option>
+								{% for soil in soils %}
+								<option>{{soil.title}}</option>
+								{%endfor%}
+							</select>
 						</div>
+						<div class="select_item" id="season_and_year">
+							<select id="select_season" class="select_3">
+								<option value="" hidden disabled selected>Сезон</option>
+								<option>Весна</option>
+								<option>Лето</option>
+								<option>Осень</option>
+								<option>Зима</option>
+							</select>
+
+							<input type="number" class="select_4" id="year_input" placeholder="Год" min="2022">
+
+						</div>
+
 						<div class="input_item">
 							<input type="text" size="30" class="input_form" id="sowing_a_input" placeholder="площадь засева"><span class="unit">Га</span>
 						</div>
-						<div>
-							<input type="date" id="input_date_p" class="input_date">
-						</div>
-						<button id="calc_btn" onclick="get_prognose();" class="btn">РАСЧИТАТЬ</button>
+						<button id="calc_btn" onclick="try {get_prognose();} catch (error) {console.error(error);}" class="btn">РАСЧИТАТЬ</button>
 					</div>
 				</div>
 				<div class="result">
 					<p class="data_title">Результат</p>
 					<div class="table">
-						<div class="table_1">
-							<div class="table_item">
-								<p id='culture_show'>Вид культуры:</p>
-							</div>
-							<div class="table_item">
-								<p id='soil_show'>Тип почвы:</p>
-							</div>
-							<div class="table_item">
-								<p id='area_show'>Площадь засева:</p>
-							</div>
+						<table id="culture_show" class="table_1">
+							<tr class="table_item">
+								<th>Вид культуры</th>
+								<th>Продуктивность (Кг/Га)</th>
+								<th>Температура</th>
+								<th>Осадки</th>
+							</tr>
+							<tr class="table_item">
+								<td id='culture_show_title'></td>
+								<td id='culture_show_prod'></td>
+								<td id='culture_show_temp'></td>
+								<td id='culture_show_prec'></td>
+							</tr>
+						</table>
+						<table id='soil_show' class="table_1">
+							<tr class="table_item">
+								<th>Тип почвы</th>
+								<th>Продуктивность (коэф.)</th>
+								<th>Площадь</th>
+							</tr>
+							<tr class="table_item">
+								<td id='soil_show_title'></td>
+								<td id='soil_show_prod'></td>
+								<td id='soil_show_area'></td>
+							</tr>
+						</table>
+					</div>
+					<div class="table">
+						<div class="table_item">
+							<p>Благоприятность погоды:</p>
+							<input readonly="readonly" id="weather_k_show" type="text">
 						</div>
-						<div class="table_2">
-							<div class="table_item">
-								<p>Благоприятность погоды:</p>
-								<input id="weather_k_show" type="text">
-							</div>
-							<div class="table_item">
-								<p><b>Урожайность:</b></p>
-								<input id="prod_show" type="text">
-							</div>
+						<div class="table_item">
+							<p>Урожайность:</p>
+							<input readonly="readonly" id="prod_show" type="text">
 						</div>
 					</div>
 				</div>

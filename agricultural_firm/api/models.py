@@ -23,6 +23,9 @@ class Culture(models.Model):
                 name='fav_precip_bot_top_check_const'
             )
         ]
+    
+    def __str__(self) -> str:
+        return self.name
 
 class Soil_quality(models.Model):
     
@@ -33,6 +36,9 @@ class Soil_quality(models.Model):
     
     class Meta:
         db_table = "soil_qualities"
+    
+    def __str__(self):
+        return self.title
     
 class Period(models.Model):
     
@@ -46,29 +52,41 @@ class Period(models.Model):
     class Meta:
         db_table = 'periods'
     
+    def __str__(self):
+        year = self.start_date.year
+        return f"{year} {self.title}"
+    
 class Meteo_report(models.Model):
     
     period = models.ForeignKey(
         Period,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="meteo_report"
     )
     report_date = models.DateField()
     temperature = models.FloatField()
     precipitation = models.FloatField()
+    wind = models.FloatField(null=True)
+    weather = models.CharField(
+        max_length=100,
+        null=True
+    )
     
     class Meta:
         db_table = 'meteo_reports'
 
-"""
-class Regression_prognoses(models.Model):
+class Regression_prognose(models.Model):
     period = models.ForeignKey(
         Period,
         on_delete=models.CASCADE
     )
-    avg_temp = models.FloatField()
-    avg_precip = models.FloatField()
+    temp_avg = models.FloatField(null=True)
+    prec_avg = models.FloatField(null=True)
     
-
+    class Meta:
+        db_table = 'regression_prognoses'
+    
+"""
 class Plot_culture(models.Model):
     D_SOWING = 100.0
     

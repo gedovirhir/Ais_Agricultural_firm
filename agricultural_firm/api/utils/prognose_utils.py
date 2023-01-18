@@ -1,38 +1,61 @@
-from typing import Union, List, NamedTuple, Tuple, Optional
+from typing import Union, List, NamedTuple, Tuple, Optional, Any, Collection
 
 from datetime import date, datetime, timedelta
 from random import randint
 
 import numpy as np
 import torch 
-from torch.nn import Linear, MSELoss
-from torch.nn.functional import normalize
+from torch.nn import Linear, MSELoss, ReLU
+from torch.nn.functional import normalize, batch_norm
 from torch.autograd import Variable
+
+from ..models import Regression_prognose, Period
 
 class synopticReportTuple(NamedTuple):
     date: Union[datetime, date]
+    prev_year_flag: bool
     temperature: Union[int, float] 
     precipitation: Union[int, float]
+    wind: Union[int, float]
 
 class synopticRegression(torch.nn.Module):
+    d_min = 0
+    d_max = 365
+    
     def __init__(self) -> None:
         super(synopticRegression, self).__init__()
-        self.linear1 = Linear(1, 5)
-        self.linear4 = Linear(5, 2)
-    
-    def forward(self, x):
-        if not isinstance(x, Variable):
-            x = np.array([x], dtype=np.float32)
-            x = torch.tensor(x)
-            x = normalize(x, dim=0)
-            x = Variable(x)
+        self.rl = ReLU()
         
-        out = self.linear1(x)
-        out = self.linear4(out)
+        self.linear1 = Linear(2, 10)
+        self.linear2 = Linear(10, 10)
+        self.linear3 = Linear(10, 3)
+    
+    def __input_to_variable(self, input_: Tuple[int, int]) -> Variable:
+        all_d = np.array([input_], dtype=np.float32)
+        all_d = torch.tensor(all_d)
+        all_d = Variable(all_d)
+        
+        return all_d
+    
+    def __day_normalize(self, var: torch.Tensor):
+        return var / torch.tensor((self.d_max, 1))
+    
+    def forward(self, input_: Union[Variable, Tuple[int, int]]):
+        x = input_
+        
+        if not isinstance(x, Variable):
+            x = self.__input_to_variable(x)
+        
+        #Normalize
+        x = self.__day_normalize(x)
+        
+        out = self.rl(self.linear1(x))
+        out = self.rl(self.linear2(out))
+        out = self.linear3(out)
         
         if not self.training:
             res = [
-                float(b) for b in out
+                float(b) for b in out[0]
             ]
             return res
         return out
@@ -47,6 +70,25 @@ def date_to_days_count(date_: Union[date, datetime]) -> int:
     
     return dates_delta.days
 
+def reports_to_traindata(reports: List[synopticReportTuple]):
+    x_train = []
+    y_train = []
+    
+    for rep in reports:
+        x_train.append(
+            # days from year start, prev year flag
+            (date_to_days_count(rep[0]), rep[1])
+        )
+        
+        y_train.append((rep[2], rep[3], rep[4]))
+        
+    x_train, y_train = np.array(x_train, dtype=np.float32),\
+                       np.array(y_train, dtype=np.float32)
+
+    x_train, y_train = torch.tensor(x_train), torch.tensor(y_train)
+    
+    return (x_train, y_train)
+
 def get_finished_model(
     reports: List[synopticReportTuple]
 ) -> synopticRegression:
@@ -57,29 +99,12 @@ def get_finished_model(
         model.eval()
         return model
     except Exception as ex:
-        pass
-    """
-    x_train, y_train = zip(
-        *[(date_to_days_count(r[0]), [r[1], r[2]])
-            for r in reports]
-    )
+        pass"""
     
-    x_train, y_train = np.array(x_train, dtype=np.float32).reshape(-1, 1),\
-                       np.array(y_train, dtype=np.float32) 
-    
-    x_train, y_train = torch.tensor(x_train), torch.tensor(y_train)
-    
-    x_train = normalize(x_train, dim=0)
-
-    """x_min = torch.min(x_train)
-    x_max = torch.max(x_train)
-    
-    x_train -= x_min
-    x_train /= x_max"""
+    x_train, y_train = reports_to_traindata(reports)
     
     lr = 0.001
-    epoch = 300
-    
+    epoch = 150
     batch_size = 64
     batch_count = len(x_train) // batch_size
     
@@ -107,9 +132,8 @@ def get_finished_model(
 
             optimizer.step()
             
-            print('epoch {}, loss {}'.format(e, loss.item()))
+            #print('epoch {}, loss {}'.format(e, loss.item()))
     
-    #torch.save(model.state_dict(), model_p)
     model.eval()
     
     return model
@@ -124,10 +148,12 @@ def get_prognose_avg(
     per_mid = per_end - per_start
     per_start = date_to_days_count(per_start)
     per_end = date_to_days_count(per_end)
-    
-    prognoses = [model(per_start),
-                 model(per_mid.days // 2),
-                 model(per_end)]
+    """
+    model -> (temperature, precipitation, wind)
+    """
+    prognoses = [model((per_start, 0)),
+                 model((per_mid.days // 2, 0)),
+                 model((per_end, 0))]
     
     avg_temp = 0
     avg_prec = 0
@@ -170,11 +196,27 @@ def calculate_productivity_on_period(
         per_start = reports[0][0]
         per_end = reports[-1][0]
     
-    temp_avg, prec_avg = get_prognose_avg(
-        reports, 
-        per_start,
-        per_end
-    )
+    period_ = Period.objects.filter(
+        start_date=per_start,
+        end_date=per_end
+    ).first()
+    
+    exist_prognose = Regression_prognose.objects.filter(period=period_).first()
+    
+    if exist_prognose:
+        temp_avg, prec_avg = exist_prognose.temp_avg, exist_prognose.prec_avg
+    else:
+        temp_avg, prec_avg = get_prognose_avg(
+            reports, 
+            per_start,
+            per_end
+        )
+        new_progn = Regression_prognose(
+            period=period_,
+            temp_avg=temp_avg,
+            prec_avg=prec_avg
+        )
+        new_progn.save()
     
     temp_c = culture_prod_coef(
         c_fav_temp_bound,
@@ -185,14 +227,23 @@ def calculate_productivity_on_period(
         prec_avg
     )
     
-    weather_coef = temp_c * (prec_c + 0.0001)
+    prec_c_buff = 1.5
+    prec_c *= abs(-(prec_c - 0.5)**3 + 1)**2 
+    weather_coef = temp_c * prec_c + 0.0001
     
     productivity = c_coef * sowing_area
     productivity *= soil_coef * weather_coef
     productivity = round(productivity, 2)
     
-    return (productivity, weather_coef)
-
+    prognose = {
+        "temp_avg": round(temp_avg, 1),
+        "prec_avg": round(prec_avg, 1),
+        "prod": round(productivity, 2),
+        "weather_k": round(weather_coef, 1)
+    }
+    
+    return prognose
+    
 if __name__ == "__main__":
     temps = [22.9, 25.1, 25.7, 28, 32.3, 29.7, 25, 26.7, 31.9, 30.1,
     30.4, 21.7, 18.6, 21, 24.6, 27.7, 20.9, 22.9, 22.5, 25.6, 29.3,

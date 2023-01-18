@@ -26,4 +26,6 @@ class GetPrognoseSerializer(Serializer):
     culture_id = IntegerField()
     soil_type_id = IntegerField()
     sowing_area = FloatField()
-    date = DateField(default=None, allow_null=True)
+    year = IntegerField()
+    season = CharField(max_length=100)
+

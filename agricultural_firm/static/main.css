@@ -43,7 +43,7 @@ html, body {
 	color: #3D3D3D;
 }
 
-.select_1, .select_2, .input_form, .input_date {
+.select_1, .select_2, .select_3, .select_4, .input_form, .input_date {
 	width: 234px;
 	height: 42px;
 	font-size: 20px;
@@ -52,7 +52,22 @@ html, body {
 	font-family: 'Montserrat', sans-serif;
 	outline: none;
 	padding: 0 0 0 16px;
-	margin-bottom: 38px;
+	margin-bottom: 30px;
+}
+
+.select_3 {
+	width: 117px;
+}
+
+.select_item#season_and_year {
+	position: relative;
+}
+.select_4#year_input {
+	width: 88px;
+	height: 40px;
+	position: absolute;
+	left: 55%;
+	top: 0%;
 }
 
 
@@ -86,23 +101,30 @@ html, body {
 
 .table {
 	width: 730px;
-	height: 376px;
+	height: 200px;
 	background: #fff;
 	border: 1px solid #4E4E4E;
 	border-radius: 6px;
+	padding: 50px;
+	font-size: 2px;
+	margin: 20px;
 }
 
 .table_1 {
-	margin-bottom: 53px;
+	margin: auto;
+	border: 1px solid black;
 }
 
 .table_item {
-	font-size: 24px;
+	font-size: 17px;
 	display: flex;
 }
 
-.table_item p {
-	margin: 14px 8px 8px 16px;
+.table_item th, td{
+	margin: auto;
+	padding-left: 30px;
+	padding-right: 30px;
+	padding-bottom: 30px;
 }
 
 .table_item input {
@@ -111,6 +133,11 @@ html, body {
 	font-family: 'Montserrat', sans-serif;
 	font-size: 20px;
 	outline: none;
+}
+#weather_k_show, #prod_show {
+	margin: 20px;
+	width: 400px;
+	top: -20px;
 }
 
 

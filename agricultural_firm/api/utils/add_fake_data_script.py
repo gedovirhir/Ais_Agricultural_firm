@@ -5,12 +5,9 @@ sys.path.append(os.path.abspath('agricultural_firm/api'))
 
 from ..models import *
 
-import pandas
+import pandas as pd
 from datetime import datetime, timedelta
 from random import randint
-
-def _from_f_to_c(temperature: float, rnd_c: int = 2):
-    return round(temperature * 3/9, rnd_c)
 
 def _delete_all_data():
     mdls = [Culture, Soil_quality, Period, Meteo_report]
@@ -26,9 +23,9 @@ def _per_bound(year: int, per_i: int) -> datetime:
         3: (9, 11),
         4: (12, 2)
     }
-    
-    s_m = periods[per_i][0]
-    e_m = periods[per_i][1] + 1
+    per = periods[per_i]
+    s_m = per[0]
+    e_m = per[1] + 1
     
     s_y = year - abs(s_m - 1) // 13
     e_y = year + abs(s_m + 1) // 13
@@ -56,13 +53,13 @@ def _add_fake_data():
     }
     def __fake_cultures():
         names = ['Морковь', 'Мандрагора', 'Глазоцвет', 'Кринжовник', 'Картофель', 
-                 'Кабачки', 'Цукини', 'Патиссон', 'Крукнек', 'Крукнек', 'Люффа']
+                 'Кабачки', 'Цукини', 'Патиссон', 'Крукнек', 'Люффа']
         
         for n in names:
             fav_temp_bot = randint(10, 20)
             fav_temp_top = fav_temp_bot + randint(5, 10)
-            fav_precip_bot = randint(5, 30)
-            fav_precip_top = fav_precip_bot + randint(5, 20)
+            fav_precip_bot = randint(1, 20)
+            fav_precip_top = fav_precip_bot + randint(1, 20)
             
             new_c = Culture(
                 name=n,
@@ -88,10 +85,12 @@ def _add_fake_data():
             new_s.save()
             
     def __fake_period():
-        now_year = 2022
+        now_year = 2020
         
         for d_year in range(10):
             for pr in PER:
+                if pr == 0 and d_year != 0: continue
+                
                 year = now_year + d_year
                 s_date, e_date = _per_bound(year, pr)
                 
@@ -103,79 +102,52 @@ def _add_fake_data():
                 new_per.save()
                 
     def __fake_prognoses():
-        fake_data = pandas.read_csv(
-            'api/utils/fake_data/city_temperature.csv',
+        fake_data = pd.read_csv(
+            'api/utils/fake_data/seattle-weather.csv',
             sep=','
         )
-        fake_data = fake_data.loc[(fake_data['Region'] == 'Africa') & 
-                         (fake_data['Country'] == 'Algeria') &
-                         (fake_data['Year'] > 2000), ['Month', 'Day', 'Year', 'AvgTemperature']]
-
-        for year in fake_data['Year'].unique():
-            periods = {}
+        
+        fake_data['date'] = pd.to_datetime(
+            fake_data['date'],
+            format = "%Y-%m-%d"
+        )
+        
+        fake_data["year"] = fake_data['date'].dt.year
+        fake_data["year"] += 8
+        
+        fake_data["month"] = fake_data['date'].dt.month
+        fake_data["day"] = fake_data['date'].dt.day
+        fake_data["temp_avg"] = fake_data['temp_max']
+        
+        for row in fake_data.to_dict(orient='records'):
+            now_date = datetime(row['year'], row['month'], row['day'])
             
-            # (12 1 2) (3 4 5) (6, 7, 8) (9, 10, 11)
-            for _, pr in fake_data.loc[fake_data['Year'] == year].iterrows():
-                m_i = pr['Month']
-                d_i = pr['Day']
-                per_i = _per_by_month(m_i)
-                temp = _from_f_to_c(pr['AvgTemperature'])
-                temp_p = 0
-                
-                if not periods.get(per_i):
-                    s_date, e_date = _per_bound(year, per_i)
-                    per_o = Period(
-                        title=PER[per_i],
-                        start_date=s_date, 
-                        end_date=e_date
-                    )
-                    per_o.save()
-                    
-                    periods.update(
-                        {per_i: per_o}
-                    )
-                    
-                    
-                    temp_p = fake_data.loc[
-                        ((per_o.start_date.year <= fake_data['Year']) & (fake_data['Year'] <= per_o.end_date.year)) &
-                        (fake_data['Month'] >= per_o.start_date.month - 12 * (fake_data['Year'] - per_o.start_date.year)) &
-                        (fake_data['Month'] < per_o.end_date.month + 12 * (fake_data['Year'] - per_o.start_date.year)),
-                        'AvgTemperature'
-                    ]
-                    avg_temp_p = temp_p.mean()
-                    avg_temp = _from_f_to_c(avg_temp_p)
-                
-                #s_d = datetime(year=year, month=0*3 + 1, day=1)
-                #e_d = datetime(year=year, month=0*3 + 3, day=1)
-                
-                prec = round(
-                    randint(10, 30) * (avg_temp / temp),
-                    2
-                )
-                report_date = datetime(
-                    int(year), 
-                    int(m_i),
-                    int(d_i)
-                )
-                
-                m_rep = Meteo_report(
-                    period=periods[per_i],
-                    report_date=report_date,
-                    temperature=temp,
-                    precipitation=prec
-                )
-                m_rep.save()
-    
+            period = Period.objects.filter(
+                start_date__lte=now_date,
+                end_date__gt=now_date
+            ).order_by('-id')\
+             .first()
+
+            m_rep = Meteo_report(
+                period=period,
+                report_date=now_date,
+                temperature=row['temp_avg'],
+                precipitation=row['precipitation'],
+                wind=row['wind'],
+                weather=row['weather']
+            )
+            m_rep.save()
+
     print("STARTING LOAD FAKE DATA")
     __fake_cultures()
     __fake_soils()
-    __fake_prognoses()
     __fake_period()
+    __fake_prognoses()
 
 
+_add_fake_data()
 """for i in range(1, 13):
     print(((i + 1) % 12) // 3)
     
 """
-if __name__ == "__main__":
-    _add_fake_data()
+    

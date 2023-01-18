@@ -7,6 +7,12 @@ from .utils.db_api import *
 from .utils.prognose_utils import calculate_productivity_on_period
 from .serializers import *
 
+DEFAULT_SEASONS_N = {
+    "Весна": 0,
+    "Лето": 1,
+    "Осень": 2,
+    "Зима": 3
+}
 ErrorJsonResponse = {
     "status": "ERROR",
     "message": "Request Error"
@@ -36,16 +42,23 @@ class getPrognose(APIView):
         
         params = r_params.data
         
-        p = get_actual_period(params.get('date'))
+        p = get_actual_period(params.get('year'), params.get('season'))
         c = Culture.objects.get(id=params['culture_id'])
         soil = Soil_quality.objects.get(id=params['soil_type_id'])
+        per_n = DEFAULT_SEASONS_N[params['season']]
+        periods_count = 4 + per_n
         
-        periods_query = get_all_previous_periods(p.start_date, limit=4 )
-        reports_query = get_period_meteo_reports([pr.id for pr in periods_query])
+        periods_query = get_all_previous_periods(p.start_date, limit=periods_count)
         
-        reports = [(rep.report_date, rep.temperature, rep.precipitation) for rep in reports_query]
+        prev_year_rep_q = get_period_meteo_reports([pr.id for pr in periods_query[:4]])
+        now_year_rep_q = get_period_meteo_reports([pr.id for pr in periods_query[4:]])
         
-        prodctv, weather_k = calculate_productivity_on_period(
+        prev_rep = [(rep.report_date, 1, rep.temperature, rep.precipitation, rep.wind) for rep in prev_year_rep_q]
+        now_rep = [(rep.report_date, 0, rep.temperature, rep.precipitation, rep.wind) for rep in now_year_rep_q]
+        
+        reports = prev_rep + now_rep
+        
+        prognose_res = calculate_productivity_on_period(
             c.productivity_k,
             (c.fav_temp_bot, c.fav_temp_top),
             (c.fav_precip_bot, c.fav_precip_top),
@@ -56,12 +69,7 @@ class getPrognose(APIView):
             p.end_date
         )
         
-        res = {
-            "prod": prodctv,
-            "weather": weather_k
-        }
-        
-        return Response(res)
+        return Response(prognose_res)
     
         
         

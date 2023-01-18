@@ -59,11 +59,6 @@ class TestDbAPI(TestCase):
         print("PREV PERIOD REPORTS:")
         for r in p_per_rep:
             print(f'{r.period.title} - t {r.temperature} - p {r.precipitation}')
-    
-    def test_add_regression_prognose(self):
-        n_per = get_actual_period()
-        
-        add_regression_prognose(n_per.id, 12.3, 32.1)
         
         
         
