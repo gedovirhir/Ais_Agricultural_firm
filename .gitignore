@@ -1,5 +1,4 @@
 *.pyc
-*.pyc
-*.pyc
 agricultural_firm/api/utils/fake_data/
 __pycache__
+.vscode
